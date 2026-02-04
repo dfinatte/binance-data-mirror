@@ -1,9 +1,8 @@
 import { Partner } from '@/hooks/useMiningData';
-import { Settings, Users } from 'lucide-react';
+import { Settings, Users, Pencil, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 interface GestaoSociosProps {
   partners: Partner[];
@@ -18,84 +17,67 @@ interface GestaoSociosProps {
 }
 
 export const GestaoSocios = ({ partners, btcPrice, getPartnerStats, onUpdatePartner }: GestaoSociosProps) => {
-  const [isConfigOpen, setIsConfigOpen] = useState(false);
-  const [editingPartners, setEditingPartners] = useState<Partner[]>(partners);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editCapital, setEditCapital] = useState('');
 
   const formatBtc = (value: number) => `₿ ${value.toFixed(8)}`;
   const formatBrl = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
-  const handleSaveConfig = () => {
-    editingPartners.forEach(p => {
-      onUpdatePartner(p.id, { name: p.name, quota: p.quota });
-    });
-    setIsConfigOpen(false);
+  const totalCapital = partners.reduce((sum, p) => sum + p.initialCapital, 0);
+
+  const getQuota = (capital: number) => {
+    if (totalCapital === 0) return 0;
+    return (capital / totalCapital) * 100;
   };
+
+  const startEditing = (partner: Partner) => {
+    setEditingId(partner.id);
+    setEditName(partner.name);
+    setEditCapital(partner.initialCapital.toString());
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditName('');
+    setEditCapital('');
+  };
+
+  const saveEditing = (id: string) => {
+    const capital = parseFloat(editCapital) || 0;
+    onUpdatePartner(id, { 
+      name: editName, 
+      initialCapital: capital,
+      quota: getQuota(capital)
+    });
+    setEditingId(null);
+  };
+
+  // Recalculate quotas when capitals change
+  const recalculatedPartners = partners.map(p => ({
+    ...p,
+    quota: getQuota(p.initialCapital)
+  }));
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Gestão de Sócios</h1>
-          <p className="text-muted-foreground text-sm">Controle de participações e capital investido</p>
+          <p className="text-muted-foreground text-sm">Controle de aportes e participação societária</p>
         </div>
-
-        <Dialog open={isConfigOpen} onOpenChange={setIsConfigOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" className="gap-2">
-              <Settings className="w-4 h-4" />
-              Configurar
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="bg-card border-border">
-            <DialogHeader>
-              <DialogTitle>Configurar Sócios</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 mt-4">
-              {editingPartners.map((partner, index) => (
-                <div key={partner.id} className="p-4 rounded-lg bg-secondary space-y-3">
-                  <h4 className="font-medium">{partner.name}</h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="stat-label">Nome</label>
-                      <Input
-                        value={partner.name}
-                        onChange={e => {
-                          const updated = [...editingPartners];
-                          updated[index].name = e.target.value;
-                          setEditingPartners(updated);
-                        }}
-                        className="input-dark mt-1"
-                      />
-                    </div>
-                    <div>
-                      <label className="stat-label">Cota (%)</label>
-                      <Input
-                        type="number"
-                        value={partner.quota}
-                        onChange={e => {
-                          const updated = [...editingPartners];
-                          updated[index].quota = parseFloat(e.target.value) || 0;
-                          setEditingPartners(updated);
-                        }}
-                        className="input-dark mt-1"
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-              <Button onClick={handleSaveConfig} className="w-full btn-primary">
-                Salvar Configurações
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <div className="stat-card px-4 py-2">
+          <p className="stat-label">Capital Total</p>
+          <p className="text-lg font-semibold text-foreground">{formatBrl(totalCapital)}</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {partners.map(partner => {
+        {recalculatedPartners.map(partner => {
           const stats = getPartnerStats(partner.id, btcPrice);
           if (!stats) return null;
+          const isEditing = editingId === partner.id;
 
           return (
             <div key={partner.id} className="stat-card">
@@ -104,33 +86,82 @@ export const GestaoSocios = ({ partners, btcPrice, getPartnerStats, onUpdatePart
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
                     <Users className="w-5 h-5 text-primary" />
                   </div>
-                  <h3 className="text-lg font-semibold">{partner.name}</h3>
+                  {isEditing ? (
+                    <Input
+                      value={editName}
+                      onChange={e => setEditName(e.target.value)}
+                      className="input-dark w-40"
+                    />
+                  ) : (
+                    <h3 className="text-lg font-semibold">{partner.name}</h3>
+                  )}
                 </div>
-                <span className="badge-info px-3 py-1 rounded-full text-xs font-semibold">
-                  {partner.quota}% COTA
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="badge-info px-3 py-1 rounded-full text-xs font-semibold">
+                    {partner.quota.toFixed(1)}% COTA
+                  </span>
+                  {isEditing ? (
+                    <>
+                      <Button size="icon" variant="ghost" onClick={() => saveEditing(partner.id)} className="h-8 w-8 text-success hover:text-success">
+                        <Check className="w-4 h-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={cancelEditing} className="h-8 w-8 text-destructive hover:text-destructive">
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <Button size="icon" variant="ghost" onClick={() => startEditing(partner)} className="h-8 w-8">
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
+                  <p className="stat-label">Valor Aportado</p>
+                  {isEditing ? (
+                    <Input
+                      type="number"
+                      value={editCapital}
+                      onChange={e => setEditCapital(e.target.value)}
+                      className="input-dark mt-1"
+                      placeholder="0.00"
+                    />
+                  ) : (
+                    <p className="text-foreground font-mono font-semibold">{formatBrl(partner.initialCapital)}</p>
+                  )}
+                </div>
+                <div>
                   <p className="stat-label">Cota Bruta</p>
                   <p className="text-btc font-mono font-semibold">{formatBtc(stats.grossBtc)}</p>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
                   <p className="stat-label">Total Sacado</p>
                   <p className="text-destructive font-mono font-semibold">{formatBtc(stats.withdrawnBtc)}</p>
+                </div>
+                <div>
+                  <p className="stat-label">Saldo Disponível</p>
+                  <p className="text-success font-mono font-semibold">{formatBtc(stats.availableBtc)}</p>
                 </div>
               </div>
 
               <div className="pt-4 border-t border-border">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="stat-label">Saldo Disponível</p>
-                    <p className="text-success font-mono text-xl font-bold">{formatBtc(stats.availableBtc)}</p>
+                    <p className="stat-label">Patrimônio Atual</p>
+                    <p className="text-foreground font-mono text-xl font-bold">{formatBrl(stats.patrimonyBrl)}</p>
                   </div>
                   <div className="text-right">
-                    <p className="stat-label">Patrimônio</p>
-                    <p className="text-foreground font-mono">{formatBrl(stats.patrimonyBrl)}</p>
+                    <p className="stat-label">Rendimento</p>
+                    <p className={`font-mono font-semibold ${stats.patrimonyBrl > partner.initialCapital ? 'text-success' : 'text-destructive'}`}>
+                      {partner.initialCapital > 0 
+                        ? `${(((stats.patrimonyBrl - partner.initialCapital) / partner.initialCapital) * 100).toFixed(1)}%`
+                        : '—'}
+                    </p>
                   </div>
                 </div>
               </div>
