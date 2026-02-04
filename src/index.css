@@ -109,7 +109,8 @@
 
   .stat-card::before {
     content: '';
-    @apply absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 transition-opacity duration-300;
+    /* Important: this overlay must not block clicks inside the card */
+    @apply pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 transition-opacity duration-300;
   }
 
   .stat-card:hover::before {
