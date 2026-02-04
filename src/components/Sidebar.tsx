@@ -1,5 +1,4 @@
 import { LayoutDashboard, RefreshCw, Download, Users, Settings, LogOut, Zap } from 'lucide-react';
-import { clearAuth } from '@/lib/auth';
 
 interface SidebarProps {
   currentPage: string;
@@ -18,11 +17,6 @@ const menuItems = [
 ];
 
 export const Sidebar = ({ currentPage, onNavigate, onLogout, netBtc, btcPrice }: SidebarProps) => {
-  const handleLogout = () => {
-    clearAuth();
-    onLogout();
-  };
-
   const formatBtc = (value: number) => value.toFixed(8);
   const formatBrl = (value: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -72,7 +66,7 @@ export const Sidebar = ({ currentPage, onNavigate, onLogout, netBtc, btcPrice }:
         </div>
 
         <button
-          onClick={handleLogout}
+          onClick={onLogout}
           className="sidebar-item w-full text-destructive hover:bg-destructive/10"
         >
           <LogOut className="w-5 h-5" />
