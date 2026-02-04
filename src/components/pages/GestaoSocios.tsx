@@ -1,5 +1,5 @@
 import { Partner } from '@/hooks/useMiningData';
-import { Settings, Users, Pencil, Check, X } from 'lucide-react';
+import { Users, Pencil, Check, X, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
@@ -14,23 +14,23 @@ interface GestaoSociosProps {
     patrimonyBrl: number;
   } | null;
   onUpdatePartner: (id: string, updates: Partial<Partner>) => void;
+  onAddPartner: (name: string, initialCapital: number) => void;
+  onRemovePartner: (id: string) => void;
 }
 
-export const GestaoSocios = ({ partners, btcPrice, getPartnerStats, onUpdatePartner }: GestaoSociosProps) => {
+export const GestaoSocios = ({ partners, btcPrice, getPartnerStats, onUpdatePartner, onAddPartner, onRemovePartner }: GestaoSociosProps) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editCapital, setEditCapital] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newCapital, setNewCapital] = useState('');
 
   const formatBtc = (value: number) => `₿ ${value.toFixed(8)}`;
   const formatBrl = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
   const totalCapital = partners.reduce((sum, p) => sum + p.initialCapital, 0);
-
-  const getQuota = (capital: number) => {
-    if (totalCapital === 0) return 0;
-    return (capital / totalCapital) * 100;
-  };
 
   const startEditing = (partner: Partner) => {
     setEditingId(partner.id);
@@ -48,17 +48,19 @@ export const GestaoSocios = ({ partners, btcPrice, getPartnerStats, onUpdatePart
     const capital = parseFloat(editCapital) || 0;
     onUpdatePartner(id, { 
       name: editName, 
-      initialCapital: capital,
-      quota: getQuota(capital)
+      initialCapital: capital
     });
     setEditingId(null);
   };
 
-  // Recalculate quotas when capitals change
-  const recalculatedPartners = partners.map(p => ({
-    ...p,
-    quota: getQuota(p.initialCapital)
-  }));
+  const handleAddPartner = () => {
+    if (newName.trim()) {
+      onAddPartner(newName.trim(), parseFloat(newCapital) || 0);
+      setNewName('');
+      setNewCapital('');
+      setIsAdding(false);
+    }
+  };
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
@@ -67,14 +69,56 @@ export const GestaoSocios = ({ partners, btcPrice, getPartnerStats, onUpdatePart
           <h1 className="text-2xl font-bold">Gestão de Sócios</h1>
           <p className="text-muted-foreground text-sm">Controle de aportes e participação societária</p>
         </div>
-        <div className="stat-card px-4 py-2">
-          <p className="stat-label">Capital Total</p>
-          <p className="text-lg font-semibold text-foreground">{formatBrl(totalCapital)}</p>
+        <div className="flex items-center gap-4">
+          <div className="stat-card px-4 py-2">
+            <p className="stat-label">Capital Total</p>
+            <p className="text-lg font-semibold text-foreground">{formatBrl(totalCapital)}</p>
+          </div>
+          <Button onClick={() => setIsAdding(true)} className="btn-primary gap-2">
+            <Plus className="w-4 h-4" />
+            Novo Sócio
+          </Button>
         </div>
       </div>
 
+      {isAdding && (
+        <div className="stat-card">
+          <h3 className="font-semibold mb-4">Adicionar Novo Sócio</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="stat-label">Nome</label>
+              <Input
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+                placeholder="Nome do sócio"
+                className="input-dark mt-1"
+              />
+            </div>
+            <div>
+              <label className="stat-label">Valor Aportado (R$)</label>
+              <Input
+                type="number"
+                value={newCapital}
+                onChange={e => setNewCapital(e.target.value)}
+                placeholder="0.00"
+                className="input-dark mt-1"
+              />
+            </div>
+            <div className="flex items-end gap-2">
+              <Button onClick={handleAddPartner} className="btn-primary">
+                <Check className="w-4 h-4 mr-2" />
+                Adicionar
+              </Button>
+              <Button variant="outline" onClick={() => setIsAdding(false)}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {recalculatedPartners.map(partner => {
+        {partners.map(partner => {
           const stats = getPartnerStats(partner.id, btcPrice);
           if (!stats) return null;
           const isEditing = editingId === partner.id;
@@ -110,9 +154,16 @@ export const GestaoSocios = ({ partners, btcPrice, getPartnerStats, onUpdatePart
                       </Button>
                     </>
                   ) : (
-                    <Button size="icon" variant="ghost" onClick={() => startEditing(partner)} className="h-8 w-8">
-                      <Pencil className="w-4 h-4" />
-                    </Button>
+                    <>
+                      <Button size="icon" variant="ghost" onClick={() => startEditing(partner)} className="h-8 w-8">
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      {partners.length > 1 && (
+                        <Button size="icon" variant="ghost" onClick={() => onRemovePartner(partner.id)} className="h-8 w-8 text-destructive hover:text-destructive">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

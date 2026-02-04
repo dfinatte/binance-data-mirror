@@ -72,10 +72,45 @@ export const useMiningData = () => {
   };
 
   const updatePartner = (id: string, updates: Partial<Partner>) => {
-    setData(prev => ({
-      ...prev,
-      partners: prev.partners.map(p => (p.id === id ? { ...p, ...updates } : p)),
-    }));
+    setData(prev => {
+      const updatedPartners = prev.partners.map(p => (p.id === id ? { ...p, ...updates } : p));
+      const totalCapital = updatedPartners.reduce((sum, p) => sum + p.initialCapital, 0);
+      const partnersWithQuotas = updatedPartners.map(p => ({
+        ...p,
+        quota: totalCapital > 0 ? (p.initialCapital / totalCapital) * 100 : 0
+      }));
+      return { ...prev, partners: partnersWithQuotas };
+    });
+  };
+
+  const addPartner = (name: string, initialCapital: number) => {
+    setData(prev => {
+      const newPartner: Partner = {
+        id: crypto.randomUUID(),
+        name,
+        quota: 0,
+        initialCapital,
+      };
+      const updatedPartners = [...prev.partners, newPartner];
+      const totalCapital = updatedPartners.reduce((sum, p) => sum + p.initialCapital, 0);
+      const partnersWithQuotas = updatedPartners.map(p => ({
+        ...p,
+        quota: totalCapital > 0 ? (p.initialCapital / totalCapital) * 100 : 0
+      }));
+      return { ...prev, partners: partnersWithQuotas };
+    });
+  };
+
+  const removePartner = (id: string) => {
+    setData(prev => {
+      const updatedPartners = prev.partners.filter(p => p.id !== id);
+      const totalCapital = updatedPartners.reduce((sum, p) => sum + p.initialCapital, 0);
+      const partnersWithQuotas = updatedPartners.map(p => ({
+        ...p,
+        quota: totalCapital > 0 ? (p.initialCapital / totalCapital) * 100 : 0
+      }));
+      return { ...prev, partners: partnersWithQuotas };
+    });
   };
 
   const getTotals = () => {
@@ -117,6 +152,8 @@ export const useMiningData = () => {
     addEntry,
     addWithdrawal,
     updatePartner,
+    addPartner,
+    removePartner,
     getTotals,
     getPartnerStats,
   };
