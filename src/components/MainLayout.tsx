@@ -47,6 +47,8 @@ export const MainLayout = ({ onLogout }: MainLayoutProps) => {
             btcPrice={priceData.btcBrl}
             getPartnerStats={miningData.getPartnerStats}
             onUpdatePartner={miningData.updatePartner}
+            onAddPartner={miningData.addPartner}
+            onRemovePartner={miningData.removePartner}
           />
         );
       case 'config':
