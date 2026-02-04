@@ -56,14 +56,16 @@ export const Dashboard = ({
   };
 
   const handleAddWithdrawal = () => {
-    const brlAmount = parseFloat(withdrawBrl);
     const btcAmount = parseFloat(withdrawBtc);
-    if ((isNaN(brlAmount) || brlAmount <= 0) && (isNaN(btcAmount) || btcAmount <= 0)) return;
+    if (isNaN(btcAmount) || btcAmount <= 0) return;
     if (!beneficiary) return;
 
+    // BRL is always calculated from BTC at current rate
+    const brlAmount = btcAmount * btcBrl;
+
     onAddWithdrawal({
-      brlAmount: brlAmount || 0,
-      btcAmount: btcAmount || 0,
+      brlAmount,
+      btcAmount,
       beneficiary,
     });
     setWithdrawBrl('');
@@ -232,32 +234,40 @@ export const Dashboard = ({
 
             <div className="space-y-3">
               <div>
-                <label className="stat-label">Valor R$</label>
-                <div className="relative mt-1">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={withdrawBrl}
-                    onChange={e => setWithdrawBrl(e.target.value)}
-                    placeholder="0.00"
-                    className="input-dark pr-12 font-mono"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-success font-bold">R$</span>
-                </div>
-              </div>
-
-              <div>
                 <label className="stat-label">Valor BTC</label>
                 <div className="relative mt-1">
                   <Input
                     type="number"
                     step="0.00000001"
                     value={withdrawBtc}
-                    onChange={e => setWithdrawBtc(e.target.value)}
+                    onChange={e => {
+                      const btc = e.target.value;
+                      setWithdrawBtc(btc);
+                      // Auto-calculate BRL from BTC
+                      const btcVal = parseFloat(btc);
+                      if (!isNaN(btcVal) && btcVal > 0) {
+                        setWithdrawBrl((btcVal * btcBrl).toFixed(2));
+                      } else {
+                        setWithdrawBrl('');
+                      }
+                    }}
                     placeholder="0.00000000"
                     className="input-dark pr-10 font-mono"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-btc font-bold">₿</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="stat-label">Valor R$ (calculado)</label>
+                <div className="relative mt-1">
+                  <Input
+                    type="text"
+                    value={withdrawBrl ? formatBrl(parseFloat(withdrawBrl)) : ''}
+                    readOnly
+                    className="input-dark pr-12 font-mono bg-muted"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-success font-bold">R$</span>
                 </div>
               </div>
 
