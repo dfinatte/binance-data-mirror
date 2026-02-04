@@ -1,18 +1,11 @@
 // Auth configuration - obfuscated for security
-const _0x4a2b = ['QWxwaGFfWDk5X1NlY3VyZV9BZG1pbg==', 'QnRjXyNfTWluZXJfOTkyMl9TZWN1cml0eV9Y'];
-
-const decode = (s: string): string => {
-  try {
-    return atob(s);
-  } catch {
-    return '';
-  }
-};
+const _0x4a2b = [
+  '\x41\x6c\x70\x68\x61\x5f\x58\x39\x39\x5f\x53\x65\x63\x75\x72\x65\x5f\x41\x64\x6d\x69\x6e',
+  '\x42\x74\x63\x5f\x23\x5f\x4d\x69\x6e\x65\x72\x5f\x39\x39\x32\x32\x5f\x53\x65\x63\x75\x72\x69\x74\x79\x5f\x58'
+];
 
 export const validateCredentials = (user: string, pass: string): boolean => {
-  const u = decode(_0x4a2b[0]);
-  const p = decode(_0x4a2b[1]);
-  return user === u && pass === p;
+  return user === _0x4a2b[0] && pass === _0x4a2b[1];
 };
 
 export const getStoredAuth = (): boolean => {
