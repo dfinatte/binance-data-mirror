@@ -199,4 +199,13 @@
       box-shadow: 0 0 20px hsl(var(--primary) / 0.6);
     }
   }
+
+  /* Safe area for mobile devices */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }

@@ -1,25 +1,40 @@
 import { useState } from 'react';
 import { Sidebar } from './Sidebar';
+import { MobileNav } from './MobileNav';
+import { MobileHeader } from './MobileHeader';
 import { Dashboard } from './pages/Dashboard';
 import { Mineracao } from './pages/Mineracao';
 import { Saques } from './pages/Saques';
 import { GestaoSocios } from './pages/GestaoSocios';
 import { Configuracao } from './pages/Configuracao';
 import { useBinancePrice } from '@/hooks/useBinancePrice';
-import { useMiningData } from '@/hooks/useMiningData';
+import { useMiningDataCloud } from '@/hooks/useMiningDataCloud';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { useAuth } from '@/hooks/useAuth';
+import { Loader2 } from 'lucide-react';
 
-interface MainLayoutProps {
-  onLogout: () => void;
-}
-
-export const MainLayout = ({ onLogout }: MainLayoutProps) => {
+export const MainLayout = () => {
   const [currentPage, setCurrentPage] = useState('dashboard');
   const priceData = useBinancePrice();
-  const miningData = useMiningData();
+  const miningData = useMiningDataCloud();
+  const isMobile = useIsMobile();
+  const { signOut } = useAuth();
 
   const totals = miningData.getTotals();
 
+  const handleLogout = async () => {
+    await signOut();
+  };
+
   const renderPage = () => {
+    if (miningData.loading) {
+      return (
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      );
+    }
+
     switch (currentPage) {
       case 'dashboard':
         return (
@@ -71,12 +86,30 @@ export const MainLayout = ({ onLogout }: MainLayoutProps) => {
     }
   };
 
+  if (isMobile) {
+    return (
+      <div className="flex flex-col min-h-screen bg-background">
+        <MobileHeader
+          netBtc={totals.netBtc}
+          btcPrice={priceData.btcBrl}
+          onLogout={handleLogout}
+          onRefresh={miningData.refetch}
+          loading={miningData.loading}
+        />
+        <main className="flex-1 overflow-auto pb-20">
+          {renderPage()}
+        </main>
+        <MobileNav currentPage={currentPage} onNavigate={setCurrentPage} />
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar
         currentPage={currentPage}
         onNavigate={setCurrentPage}
-        onLogout={onLogout}
+        onLogout={handleLogout}
         netBtc={totals.netBtc}
         btcPrice={priceData.btcBrl}
       />
