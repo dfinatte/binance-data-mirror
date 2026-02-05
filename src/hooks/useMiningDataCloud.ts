@@ -99,7 +99,7 @@ export const useMiningDataCloud = () => {
     fetchData();
   }, [fetchData]);
 
-  const addEntry = async (entry: Omit<MiningEntry, 'id' | 'date'>) => {
+  const addEntry = async (entry: Omit<MiningEntry, 'id'> & { date?: Date }) => {
     if (!user) return;
 
     const { error } = await supabase
@@ -109,6 +109,7 @@ export const useMiningDataCloud = () => {
         btc_amount: entry.btcAmount,
         usd_value: entry.usdValue,
         brl_value: entry.brlValue,
+        date: entry.date ? entry.date.toISOString() : new Date().toISOString(),
       });
 
     if (!error) {

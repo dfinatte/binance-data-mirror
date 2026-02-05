@@ -1,12 +1,17 @@
-import { TrendingUp, Plus, Download, FileText } from 'lucide-react';
+import { TrendingUp, Plus, Download, FileText, CalendarIcon, Building2, Pickaxe } from 'lucide-react';
 import { StatCard } from '@/components/StatCard';
 import { MarketTicker } from '@/components/MarketTicker';
 import { MiningEntry, WithdrawEntry, Partner } from '@/hooks/useMiningData';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 interface DashboardProps {
   btcUsd: number;
@@ -16,7 +21,7 @@ interface DashboardProps {
   entries: MiningEntry[];
   withdrawals: WithdrawEntry[];
   partners: Partner[];
-  onAddEntry: (entry: { btcAmount: number; usdValue: number; brlValue: number }) => void;
+  onAddEntry: (entry: { btcAmount: number; usdValue: number; brlValue: number; date?: Date }) => void;
   onAddWithdrawal: (withdrawal: { brlAmount: number; btcAmount: number; beneficiary: string }) => void;
   totals: { totalBtc: number; totalWithdrawnBrl: number; totalWithdrawnBtc: number; netBtc: number };
 }
@@ -33,8 +38,9 @@ export const Dashboard = ({
   totals,
 }: DashboardProps) => {
   const [newBtc, setNewBtc] = useState('');
-  const [withdrawBrl, setWithdrawBrl] = useState('');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [withdrawBtc, setWithdrawBtc] = useState('');
+  const [withdrawBrl, setWithdrawBrl] = useState('');
   const [beneficiary, setBeneficiary] = useState('');
 
   const formatBtc = (value: number) => `₿ ${value.toFixed(8)}`;
@@ -42,6 +48,11 @@ export const Dashboard = ({
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   const formatUsd = (value: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+
+  // Cálculos separados
+  const totalInvestimentoEstrutura = partners.reduce((sum, p) => sum + p.initialCapital, 0);
+  const producaoAcumuladaBtc = totals.netBtc; // BTC minerado - saques
+  const valorRealDisponivel = producaoAcumuladaBtc * btcBrl;
 
   const handleAddEntry = () => {
     const btcAmount = parseFloat(newBtc);
@@ -51,8 +62,10 @@ export const Dashboard = ({
       btcAmount,
       usdValue: btcAmount * btcUsd,
       brlValue: btcAmount * btcBrl,
+      date: selectedDate,
     });
     setNewBtc('');
+    setSelectedDate(new Date());
   };
 
   const handleAddWithdrawal = () => {
@@ -60,7 +73,6 @@ export const Dashboard = ({
     if (isNaN(btcAmount) || btcAmount <= 0) return;
     if (!beneficiary) return;
 
-    // BRL is always calculated from BTC at current rate
     const brlAmount = btcAmount * btcBrl;
 
     onAddWithdrawal({
@@ -112,6 +124,45 @@ export const Dashboard = ({
         lastUpdate={lastUpdate}
       />
 
+      {/* Cards principais: Estrutura vs Produção */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Card A: Investimento em Estrutura */}
+        <div className="stat-card border-l-4 border-l-info">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-lg bg-info/10 flex items-center justify-center">
+              <Building2 className="w-5 h-5 text-info" />
+            </div>
+            <div>
+              <p className="stat-label">INVESTIMENTO EM ESTRUTURA</p>
+              <p className="text-xs text-muted-foreground">Capital fixo aportado pelos sócios</p>
+            </div>
+          </div>
+          <p className="text-2xl font-bold font-mono text-info">{formatBrl(totalInvestimentoEstrutura)}</p>
+          <p className="text-xs text-muted-foreground mt-1">Valor em R$ • Não oscila com mercado</p>
+        </div>
+
+        {/* Card B: Produção Acumulada */}
+        <div className="stat-card border-l-4 border-l-btc">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-lg bg-btc/10 flex items-center justify-center">
+              <Pickaxe className="w-5 h-5 text-btc" />
+            </div>
+            <div>
+              <p className="stat-label">PRODUÇÃO ACUMULADA</p>
+              <p className="text-xs text-muted-foreground">Saldo minerado disponível</p>
+            </div>
+          </div>
+          <div className="flex items-baseline gap-3">
+            <p className="text-2xl font-bold font-mono text-btc">{formatBtc(producaoAcumuladaBtc)}</p>
+          </div>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-xs text-muted-foreground">Valor atual:</span>
+            <span className="text-lg font-semibold font-mono text-success">{formatBrl(valorRealDisponivel)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Cards secundários */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="BTC / BRL"
@@ -130,7 +181,7 @@ export const Dashboard = ({
         <StatCard
           label="Bruto Total"
           value={formatBtc(totals.totalBtc)}
-          subtitle="ENTRADAS TOTAIS"
+          subtitle="MINERADO TOTAL"
           variant="bitcoin"
         />
         <StatCard
@@ -187,10 +238,38 @@ export const Dashboard = ({
           <div className="stat-card">
             <div className="flex items-center gap-2 mb-4">
               <Plus className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold text-primary">Nova Mineração</h3>
+              <h3 className="font-semibold text-primary">Nova Produção (Baixa)</h3>
             </div>
 
             <div className="space-y-3">
+              <div>
+                <label className="stat-label">Data da Produção</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal mt-1 input-dark",
+                        !selectedDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {selectedDate ? format(selectedDate, "dd/MM/yyyy", { locale: ptBR }) : <span>Selecione a data</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => date && setSelectedDate(date)}
+                      disabled={(date) => date > new Date()}
+                      initialFocus
+                      locale={ptBR}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
               <div>
                 <label className="stat-label">Valor BTC</label>
                 <div className="relative mt-1">
@@ -207,7 +286,7 @@ export const Dashboard = ({
               </div>
 
               <div>
-                <label className="stat-label">Valor USD</label>
+                <label className="stat-label">Valor USD (calculado)</label>
                 <div className="relative mt-1">
                   <Input
                     type="text"
@@ -220,7 +299,7 @@ export const Dashboard = ({
               </div>
 
               <Button onClick={handleAddEntry} className="w-full btn-primary">
-                Salvar Entrada
+                Salvar Produção
               </Button>
             </div>
           </div>
@@ -243,7 +322,6 @@ export const Dashboard = ({
                     onChange={e => {
                       const btc = e.target.value;
                       setWithdrawBtc(btc);
-                      // Auto-calculate BRL from BTC
                       const btcVal = parseFloat(btc);
                       if (!isNaN(btcVal) && btcVal > 0) {
                         setWithdrawBrl((btcVal * btcBrl).toFixed(2));
