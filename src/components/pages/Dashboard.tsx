@@ -1,4 +1,4 @@
-import { TrendingUp, Plus, Download, FileText, CalendarIcon, Building2, Pickaxe } from 'lucide-react';
+import { TrendingUp, Plus, Download, FileText, CalendarIcon, Building2, Pickaxe, Calendar as CalendarIconFull, ChevronLeft, ChevronRight } from 'lucide-react';
 import { StatCard } from '@/components/StatCard';
 import { MarketTicker } from '@/components/MarketTicker';
 import { MiningEntry, WithdrawEntry, Partner } from '@/hooks/useMiningData';
@@ -7,9 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { format } from 'date-fns';
+import { format, isSameDay, startOfDay, addDays, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
@@ -32,11 +32,14 @@ export const Dashboard = ({
   change24h,
   lastUpdate,
   entries,
+  withdrawals,
   partners,
   onAddEntry,
   onAddWithdrawal,
   totals,
 }: DashboardProps) => {
+  // Global date filter for ledger view
+  const [globalDate, setGlobalDate] = useState<Date>(new Date());
   const [newBtc, setNewBtc] = useState('');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [withdrawBtc, setWithdrawBtc] = useState('');
@@ -49,10 +52,33 @@ export const Dashboard = ({
   const formatUsd = (value: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
 
-  // Cálculos separados
+  // Filter entries by selected global date
+  const filteredEntriesForDate = useMemo(() => {
+    return entries.filter(entry => isSameDay(new Date(entry.date), globalDate));
+  }, [entries, globalDate]);
+
+  const filteredWithdrawalsForDate = useMemo(() => {
+    return withdrawals.filter(w => isSameDay(new Date(w.date), globalDate));
+  }, [withdrawals, globalDate]);
+
+  // Daily totals for the selected date
+  const dailyMiningBtc = filteredEntriesForDate.reduce((sum, e) => sum + e.btcAmount, 0);
+  const dailyMiningBrl = filteredEntriesForDate.reduce((sum, e) => sum + e.brlValue, 0);
+  const dailyWithdrawalsBtc = filteredWithdrawalsForDate.reduce((sum, w) => sum + w.btcAmount, 0);
+  
+  // Check if current date has records
+  const hasRecordsForDate = filteredEntriesForDate.length > 0 || filteredWithdrawalsForDate.length > 0;
+
+  // Cálculos separados - totais acumulados
   const totalInvestimentoEstrutura = partners.reduce((sum, p) => sum + p.initialCapital, 0);
-  const producaoAcumuladaBtc = totals.netBtc; // BTC minerado - saques
+  const producaoAcumuladaBtc = totals.netBtc;
   const valorRealDisponivel = producaoAcumuladaBtc * btcBrl;
+
+  // Navigation helpers
+  const goToPreviousDay = () => setGlobalDate(prev => subDays(prev, 1));
+  const goToNextDay = () => setGlobalDate(prev => addDays(prev, 1));
+  const goToToday = () => setGlobalDate(new Date());
+  const isToday = isSameDay(globalDate, new Date());
 
   const handleAddEntry = () => {
     const btcAmount = parseFloat(newBtc);
@@ -106,15 +132,120 @@ export const Dashboard = ({
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold">Painel de Monitoramento</h1>
-          <p className="text-muted-foreground text-sm">Fluxo de caixa e mineração em tempo real</p>
+          <p className="text-muted-foreground text-sm">Livro-razão e mineração em tempo real</p>
         </div>
         <Button variant="outline" className="gap-2">
           <FileText className="w-4 h-4" />
           Resumo de Gestão
         </Button>
+      </div>
+
+      {/* Global Date Navigator - Ledger Calendar */}
+      <div className="stat-card border-l-4 border-l-primary">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <CalendarIconFull className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <p className="stat-label">NAVEGAÇÃO POR DATA</p>
+              <p className="text-xs text-muted-foreground">Selecione uma data para consultar o livro-razão</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={goToPreviousDay}
+              className="h-9 w-9"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="min-w-[200px] justify-center text-center font-medium"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {format(globalDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="center">
+                <Calendar
+                  mode="single"
+                  selected={globalDate}
+                  onSelect={(date) => date && setGlobalDate(date)}
+                  disabled={(date) => date > new Date()}
+                  initialFocus
+                  locale={ptBR}
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={goToNextDay}
+              disabled={isToday}
+              className="h-9 w-9"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+
+            {!isToday && (
+              <Button 
+                variant="secondary" 
+                size="sm"
+                onClick={goToToday}
+                className="ml-2"
+              >
+                Hoje
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Daily Summary for selected date */}
+        <div className="mt-4 pt-4 border-t border-border">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-center p-3 rounded-lg bg-muted/50">
+              <p className="text-xs text-muted-foreground mb-1">Minerado no dia</p>
+              <p className="text-lg font-bold font-mono text-btc">
+                {dailyMiningBtc > 0 ? formatBtc(dailyMiningBtc) : '—'}
+              </p>
+              {dailyMiningBtc > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  ≈ {formatBrl(dailyMiningBrl)} na cotação do registro
+                </p>
+              )}
+            </div>
+            <div className="text-center p-3 rounded-lg bg-muted/50">
+              <p className="text-xs text-muted-foreground mb-1">Saques no dia</p>
+              <p className="text-lg font-bold font-mono text-destructive">
+                {dailyWithdrawalsBtc > 0 ? formatBtc(dailyWithdrawalsBtc) : '—'}
+              </p>
+            </div>
+            <div className="text-center p-3 rounded-lg bg-muted/50">
+              <p className="text-xs text-muted-foreground mb-1">Registros</p>
+              <p className="text-lg font-bold">
+                {hasRecordsForDate 
+                  ? `${filteredEntriesForDate.length + filteredWithdrawalsForDate.length} lançamento(s)`
+                  : 'Nenhum registro'
+                }
+              </p>
+              {!hasRecordsForDate && (
+                <p className="text-xs text-success mt-1">Disponível para novo input</p>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       <MarketTicker
