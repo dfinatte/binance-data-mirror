@@ -117,6 +117,38 @@ export const useMiningDataCloud = () => {
     }
   };
 
+  const updateEntry = async (id: string, updates: Partial<Omit<MiningEntry, 'id'>>) => {
+    if (!user) return;
+
+    const updateData: Record<string, unknown> = {};
+    if (updates.btcAmount !== undefined) updateData.btc_amount = updates.btcAmount;
+    if (updates.usdValue !== undefined) updateData.usd_value = updates.usdValue;
+    if (updates.brlValue !== undefined) updateData.brl_value = updates.brlValue;
+    if (updates.date !== undefined) updateData.date = updates.date;
+
+    const { error } = await supabase
+      .from('mining_entries')
+      .update(updateData)
+      .eq('id', id);
+
+    if (!error) {
+      await fetchData();
+    }
+  };
+
+  const deleteEntry = async (id: string) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('mining_entries')
+      .delete()
+      .eq('id', id);
+
+    if (!error) {
+      await fetchData();
+    }
+  };
+
   const addWithdrawal = async (withdrawal: Omit<WithdrawEntry, 'id' | 'date'>) => {
     if (!user) return;
 
@@ -277,6 +309,8 @@ export const useMiningDataCloud = () => {
     partners,
     loading,
     addEntry,
+    updateEntry,
+    deleteEntry,
     addWithdrawal,
     updatePartner,
     addPartner,
