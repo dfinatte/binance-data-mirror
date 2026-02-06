@@ -47,6 +47,8 @@ export const MainLayout = () => {
             withdrawals={miningData.withdrawals}
             partners={miningData.partners}
             onAddEntry={miningData.addEntry}
+            onUpdateEntry={miningData.updateEntry}
+            onDeleteEntry={miningData.deleteEntry}
             onAddWithdrawal={miningData.addWithdrawal}
             totals={totals}
           />
@@ -79,6 +81,8 @@ export const MainLayout = () => {
             withdrawals={miningData.withdrawals}
             partners={miningData.partners}
             onAddEntry={miningData.addEntry}
+            onUpdateEntry={miningData.updateEntry}
+            onDeleteEntry={miningData.deleteEntry}
             onAddWithdrawal={miningData.addWithdrawal}
             totals={totals}
           />
